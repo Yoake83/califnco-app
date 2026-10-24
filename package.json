@@ -1,0 +1,28 @@
+{
+  "name": "califnco",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start -w apps/mobile",
+    "preview": "npm run web -w apps/mobile",
+    "admin": "npm run dev -w apps/admin",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build:admin": "npm run build -w apps/admin",
+    "test": "tsx --test packages/core/src/core.test.ts",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "test:firebase": "firebase emulators:exec --project demo-califnco --only auth,firestore \"node --import tsx --test --test-concurrency=1 apps/mobile/scripts/auth-rules.test.ts apps/mobile/scripts/auth-integration.test.ts apps/admin/server/orders.test.ts\"",
+    "server": "node --env-file-if-exists=.env.local --import tsx apps/admin/server/dev.ts"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase": "13.1.0",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^15.34.1",
+    "tsx": "^4.20.6",
+    "typescript": "~6.0.3"
+  }
+}

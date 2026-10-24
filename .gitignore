@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.env
+.env.local
+*.log
+tmp/
+*.apk
+*.aab
+service-account*.json
+*-debug.log
+firebase-debug.*

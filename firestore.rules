@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
+    function approvedDealer() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Dealer'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approval == 'approved';
+    }
+    match /orders/{id} {
+      allow read: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      // Creation, prices, inventory and status changes require the trusted server.
+      allow write: if false;
+    }
+    function validService(d, id) {
+      return d.keys().hasAll(['id', 'userId', 'customer', 'type', 'visitAt', 'address', 'phone', 'notes', 'status', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['id', 'userId', 'customer', 'type', 'visitAt', 'address', 'phone', 'notes', 'status', 'createdAt', 'updatedAt'])
+        && d.id == id && id.matches('^SR-[A-Za-z0-9_-]{10,80}$')
+        && d.userId is string && d.customer is string && d.customer.size() >= 2 && d.customer.size() <= 100
+        && d.type in ['Repair', 'Installation', 'Filter change', 'Maintenance']
+        && d.visitAt is timestamp && d.visitAt.time() == duration.value(12, 'h')
+        && d.address is string && d.address.size() >= 12 && d.address.size() <= 500
+        && d.phone is string && d.phone.matches('^[6-9][0-9]{9}$')
+        && d.notes is string && d.notes.size() <= 1000
+        && d.status in ['Open', 'Assigned', 'Resolved']
+        && d.createdAt is timestamp && d.updatedAt == request.time;
+    }
+    match /services/{id} {
+      allow get: if admin() || (signedIn() && (!exists(/databases/$(database)/documents/services/$(id)) || resource.data.userId == request.auth.uid));
+      allow list: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && validService(request.resource.data, id)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.customer == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+        && request.resource.data.status == 'Open'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.visitAt.date() >= (request.time + duration.value(330, 'm')).date()
+        && request.resource.data.visitAt.date() <= (request.time + duration.value(330, 'm')).date() + duration.value(365, 'd');
+      allow update: if admin() && validService(request.resource.data, id)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if false;
+    }
+    function validProduct(d, id) {
+      return d.keys().hasAll(['id', 'name', 'category', 'description', 'image', 'retail', 'stock', 'minBulk', 'active', 'revision', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['id', 'name', 'category', 'description', 'image', 'retail', 'stock', 'minBulk', 'active', 'revision', 'createdAt', 'updatedAt'])
+        && id.matches('^[A-Za-z0-9_-]{2,60}$') && d.id == id
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 160
+        && d.category in ['Purifiers', 'Dispensers', 'Pumps', 'Filters', 'Spares']
+        && d.description is string && d.description.size() >= 2 && d.description.size() <= 3000
+        && d.image is string && d.image.size() <= 2000 && d.image.matches('^https://[^\\s]+$')
+        && d.retail is int && d.retail >= 1 && d.retail <= 10000000
+        && d.stock is int && d.stock >= 0 && d.stock <= 1000000
+        && d.minBulk is int && d.minBulk >= 1 && d.minBulk <= 1000000
+        && d.active is bool && d.revision is int && d.revision >= 1
+        && d.createdAt is timestamp && d.updatedAt == request.time;
+    }
+    match /products/{id} {
+      allow read: if admin() || (signedIn() && resource.data.active == true);
+      allow create: if admin() && validProduct(request.resource.data, id)
+        && request.resource.data.createdAt == request.time && request.resource.data.revision == 1
+        && getAfter(/databases/$(database)/documents/dealerPrices/$(id)).data.revision == request.resource.data.revision;
+      allow update: if admin() && validProduct(request.resource.data, id)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.revision == resource.data.revision + 1
+        && getAfter(/databases/$(database)/documents/dealerPrices/$(id)).data.revision == request.resource.data.revision;
+      allow delete: if false;
+    }
+    match /dealerPrices/{id} {
+      allow read: if admin() || approvedDealer();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasAll(['wholesale', 'revision', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['wholesale', 'revision', 'updatedAt'])
+        && request.resource.data.wholesale is int && request.resource.data.wholesale >= 1
+        && request.resource.data.wholesale <= getAfter(/databases/$(database)/documents/products/$(id)).data.retail
+        && request.resource.data.revision == getAfter(/databases/$(database)/documents/products/$(id)).data.revision
+        && getAfter(/databases/$(database)/documents/products/$(id)).data.updatedAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    function validProfile(d, uid) {
+      return d.keys().hasAll(['id', 'name', 'email', 'role', 'approval', 'phone', 'address', 'businessName', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['id', 'name', 'email', 'role', 'approval', 'phone', 'address', 'businessName', 'createdAt', 'updatedAt'])
+        && d.id == uid
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 100
+        && d.email is string && d.email.size() > 0 && d.email.size() <= 320
+        && d.role in ['Customer', 'Dealer']
+        && d.approval in ['approved', 'pending', 'rejected']
+        && d.phone is string && (d.phone == '' || d.phone.matches('^[6-9][0-9]{9}$'))
+        && d.address is string && d.address.size() <= 500
+        && d.businessName is string && d.businessName.size() <= 160
+        && (d.role != 'Dealer' || (d.businessName.size() >= 2 && d.phone != '' && d.address.size() >= 12))
+        && d.createdAt is timestamp && d.updatedAt is timestamp;
+    }
+    match /users/{uid} {
+      allow get: if owner(uid) || admin();
+      allow list: if admin();
+      allow create: if owner(uid)
+        && validProfile(request.resource.data, uid)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.role == 'Customer' && request.resource.data.approval == 'approved')
+          || (request.resource.data.role == 'Dealer' && request.resource.data.approval == 'pending'));
+      allow update: if validProfile(request.resource.data, uid)
+        && request.resource.data.updatedAt == request.time
+        && ((owner(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'address', 'businessName', 'updatedAt']))
+          || (admin() && resource.data.role == 'Dealer' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approval', 'updatedAt'])));
+      allow delete: if false;
+    }
+    // All other collections remain closed to clients.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
