@@ -10,15 +10,15 @@ Catalog, orders and service screens now use shared Firebase records. Order mutat
 
 ## First administrator
 
-The owner selected `sonidevika080@gmail.com` (UID `ULnmKmonyjSVrplYnIW6036qKZg1`). On 24 October 2026, after explicit user approval, the trusted Cloud Shell script granted `admin: true` and read the account back to verify it. No password or private key was created or downloaded. Local tests do not grant live admin privileges.
+The first administrator has been provisioned and verified through a trusted environment. Personal account identifiers are omitted from this public guide. No password or private key was created or downloaded. Local tests do not grant live admin privileges.
 
 The reviewed script is `scripts/grant-admin.mjs`. It is fixed to project `califnco-176c3`, looks up an existing account, rejects disabled users, preserves other claims and verifies the result after applying. It never creates an account or password.
 
 In a trusted environment with Application Default Credentials and Node 24.12+:
 
 ```sh
-node scripts/grant-admin.mjs --email=sonidevika080@gmail.com
-node scripts/grant-admin.mjs --email=sonidevika080@gmail.com --uid=ULnmKmonyjSVrplYnIW6036qKZg1 --apply
+node scripts/grant-admin.mjs --email=ADMIN_EMAIL
+node scripts/grant-admin.mjs --email=ADMIN_EMAIL --uid=VERIFIED_ACCOUNT_UID --apply
 ```
 
 The first command previews the project, email and UID. The second grants admin access. Google Cloud Shell can supply the project owner's authenticated environment without downloading a service-account private key. Accepting its first-use terms and granting live access require explicit browser confirmations.
