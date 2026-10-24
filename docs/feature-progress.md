@@ -6,7 +6,7 @@ UI redesign is deferred until functionality is finished, as requested.
 2. **Dealer approvals and protected admin:** implemented; first admin claim granted and verified for the owner account. Nine emulator tests passed before catalog work.
 3. **Shared product catalog and admin stock editor:** implemented and rules published with approval; 12 Firebase tests and 6 domain tests pass. See `catalog.md`.
 4. **Shared orders:** server pricing, stock reservations, idempotency, cancellation, expiration and UI integration implemented and emulator-tested. Order-history rules are published. Admin and API are deployed to Vercel; the private server credential is configured and authenticated order verification is pending. See `orders-and-services.md` and `vercel-deployment.md`.
-5. **Payments:** Razorpay test SDK/web checkout, server verification, webhooks, reconciliation and late-payment refunds implemented; private Razorpay settings and actual test-account/device verification are pending. See `razorpay-test-checkout.md`.
+5. **Payments:** Razorpay test SDK/web checkout, server verification, webhooks, reconciliation and late-payment refunds implemented; private Razorpay variables are saved and the Test Mode webhook is enabled; actual test-account/device verification is pending. See `razorpay-test-checkout.md`.
 6. **Shared service bookings and admin status management:** implemented and tested; service rules published with user approval.
 7. **Address/location selection:** pending.
 8. **Order/service/dealer notifications:** pending; native device verification required.

@@ -2,7 +2,7 @@
 
 The Expo app uses Razorpay's official React Native SDK on Android and Standard Checkout in the web preview. Vercel creates provider orders and verifies captured payments. Live keys are explicitly rejected. No secret is shipped in the app.
 
-Deployment status, 24 October 2026: the payment integration is deployed to Vercel. The owner saved all three private payment variable names in Production; their presence was verified without revealing their values. Razorpay webhook creation is in progress. Actual test-account checkout and installed Android testing remain pending.
+Deployment status, 24 October 2026: the payment integration is deployed to Vercel. The owner saved all three private payment variable names in Production; their presence was verified without revealing their values. The webhook was verified enabled in Razorpay Test Mode with the correct URL, a configured secret and all five selected events. The deployed endpoint rejects unsigned webhook requests with HTTP 400. Actual test-account checkout and installed Android testing remain pending.
 
 ## Private setup
 
