@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Califnco",
-    "slug": "califnco",
+    "slug": "yoake",
     "scheme": "califnco",
     "plugins": [
       "expo-router"
@@ -26,6 +26,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "ffab733c-1ca1-442c-bad1-0d5e4d977c4d"
+      }
+    },
+    "owner": "devika83s-team"
   }
 }

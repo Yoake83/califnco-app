@@ -1,1 +1,14 @@
-{ "build": { "preview": { "distribution": "internal", "android": { "buildType": "apk" } }, "production": { "android": { "buildType": "app-bundle" } } } }
+{
+  "cli": { "appVersionSource": "local" },
+  "build": {
+    "preview": {
+      "node": "24.22.1",
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    "production": {
+      "node": "24.22.1",
+      "android": { "buildType": "app-bundle" }
+    }
+  }
+}
