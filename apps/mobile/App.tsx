@@ -7,6 +7,8 @@ import { useServices } from './src/services/useServices';
 import { bookService as saveService } from '../../packages/core/src/service-store';
 import { db } from './src/firebase';
 import { checkoutAvailable, commerce } from './src/orders/commerce';
+import { payOrder, refreshPayment } from './src/orders/pay';
+import { ensureCheckoutSupported } from './src/orders/checkout';
 import { accountError, saveAccountProfile } from './src/auth/account-service';
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -129,6 +131,8 @@ export default function StoreScreen({ profile }: { profile: Profile }) {
     if (placingOrder) return;
     setPlacingOrder(true);
     try {
+      ensureCheckoutSupported();
+      await commerce<{ ready: boolean }>({ action: 'payment-ready' });
       if (catalogLoading || catalogError || missingPrices) throw new Error('Refresh the catalog before checking out.');
       if (unavailableItems) throw new Error('Remove unavailable cart items before checking out.');
       validateAddress(address, phone); quote(cart, profile, products);
@@ -138,18 +142,29 @@ export default function StoreScreen({ profile }: { profile: Profile }) {
       try { attempt = JSON.parse(await AsyncStorage.getItem(attemptKey) || 'null'); } catch { /* Start a new attempt for invalid local data. */ }
       if (!attempt || attempt.completed || attempt.signature !== signature) attempt = { key: `checkout-${uid()}-${uid()}`, signature };
       await AsyncStorage.setItem(attemptKey, JSON.stringify(attempt));
-      await commerce({ action: 'create', items: cart, address: address.trim(), phone: phone.trim(), idempotencyKey: attempt.key });
+      const { order } = await commerce({ action: 'create', items: cart, address: address.trim(), phone: phone.trim(), idempotencyKey: attempt.key });
       const next = { ...data, cart: [] };
       await AsyncStorage.setItem(storageKey, JSON.stringify(next));
       await AsyncStorage.setItem(attemptKey, JSON.stringify({ ...attempt, completed: true }));
-      setData(next); setCheckout(false); setTab('Orders'); setNotice('Order reserved. Your order history shows its current status.');
+      setData(next); setCheckout(false); setTab('Orders');
+      const paid = await payOrder(order.id);
+      setNotice(paid.paymentState === 'paid' ? 'Test payment verified. Your order is confirmed.' : `Payment status: ${paid.paymentState}. Check your order history.`);
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not reserve your order. Try again.'); }
     finally { setPlacingOrder(false); }
+  }
+  async function managePayment(id: string, refresh = false) {
+    if (orderBusy || placingOrder) return;
+    setOrderBusy(id);
+    try {
+      const order = refresh ? await refreshPayment(id) : await payOrder(id);
+      setNotice(order.paymentState === 'paid' ? 'Test payment verified. Your order is confirmed.' : `Payment status: ${order.paymentState}.`);
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not check payment. Please retry.'); }
+    finally { setOrderBusy(''); }
   }
   async function cancelOrder(id: string) {
     if (orderBusy) return;
     setOrderBusy(id);
-    try { await commerce({ action: 'cancel', orderId: id }); setNotice('Unpaid order cancelled. Reserved stock has been released.'); }
+    try { await commerce({ action: 'cancel', orderId: id }); setNotice('Unpaid order cancelled. Any late captured test payment will be refunded.'); }
     catch (error) { setNotice(error instanceof Error ? error.message : 'Could not cancel your order.'); }
     finally { setOrderBusy(''); }
   }
@@ -192,7 +207,7 @@ export default function StoreScreen({ profile }: { profile: Profile }) {
         {ordersLoading && <ActivityIndicator color="#137c72" />}
         {!!ordersError && <View style={s.info}><Text style={s.infoText}>{ordersError}</Text><Button title="Retry orders" onPress={retryOrders} /></View>}
         {!ordersLoading && !ordersError && !orders.length && <View style={s.empty}><Text style={s.section}>Your orders will appear here.</Text><Button title="Explore products" onPress={() => setTab('Shop')} /></View>}
-        {orders.map(o => <View key={o.id} style={[s.card, { padding: 22, marginTop: 16, gap: 12 }]}><View style={s.rowBetween}><Text style={s.label}>{o.id}</Text><Text style={s.badge}>{o.status}</Text></View><Text style={s.small}>{new Date(o.createdAt).toLocaleString('en-IN')} · Payment: {o.paymentState}</Text>{o.items.map(i => <View style={s.rowBetween} key={i.productId}><Text style={[s.muted, { flex: 1 }]}>{i.quantity} × {i.name}</Text><Text style={s.label}>{money(i.unitPrice * i.quantity)}</Text></View>)}<Text style={s.price}>{money(o.total)}</Text><Text style={s.muted}>{o.address}</Text>{o.paymentState === 'pending' && <><Text style={s.small}>Reservation expires {new Date(o.expiresAt).toLocaleString('en-IN')}.</Text><Button secondary title={orderBusy === o.id ? 'Cancelling…' : 'Cancel unpaid order'} disabled={!!orderBusy} onPress={() => { void cancelOrder(o.id); }} /></>}</View>)}
+        {orders.map(o => <View key={o.id} style={[s.card, { padding: 22, marginTop: 16, gap: 12 }]}><View style={s.rowBetween}><Text style={s.label}>{o.id}</Text><Text style={s.badge}>{o.status}</Text></View><Text style={s.small}>{new Date(o.createdAt).toLocaleString('en-IN')} · Payment: {o.paymentState}</Text>{o.items.map(i => <View style={s.rowBetween} key={i.productId}><Text style={[s.muted, { flex: 1 }]}>{i.quantity} × {i.name}</Text><Text style={s.label}>{money(i.unitPrice * i.quantity)}</Text></View>)}<Text style={s.price}>{money(o.total)}</Text><Text style={s.muted}>{o.address}</Text>{!!o.razorpayOrderId && <Button secondary title={orderBusy === o.id ? 'Checking…' : 'Refresh payment status'} disabled={!checkoutAvailable || !!orderBusy || placingOrder} onPress={() => { void managePayment(o.id, true); }} />}{o.paymentState === 'refund_pending' && <Text style={s.small}>Payment arrived after checkout closed. Refund reconciliation is in progress.</Text>}{o.paymentState === 'pending' && <><Text style={s.small}>Reservation expires {new Date(o.expiresAt).toLocaleString('en-IN')}.</Text><Button title={orderBusy === o.id ? 'Please wait…' : 'Pay with Razorpay · Test'} disabled={!checkoutAvailable || !!orderBusy || placingOrder} onPress={() => { void managePayment(o.id); }} /><Button secondary title={orderBusy === o.id ? 'Cancelling…' : 'Cancel unpaid order'} disabled={!!orderBusy} onPress={() => { void cancelOrder(o.id); }} /></>}</View>)}
       </>}
       {tab === 'Service' && <><View style={[s.card, { padding: 24, marginTop: 20 }]}><Text style={[s.muted, { marginBottom: 20 }]}>Tell us what needs attention and choose your preferred visit date.</Text><View style={[s.row, { flexWrap: 'wrap', marginBottom: 22 }]}>{['Repair', 'Installation', 'Filter change', 'Maintenance'].map(t => <Pressable accessibilityRole="button" key={t} onPress={() => setServiceType(t)} style={[s.chip, serviceType === t && s.chipActive]}><Text style={[s.chipText, serviceType === t && { color: '#fff' }]}>{t}</Text></Pressable>)}</View><Field editable={!serviceBusy} label="Preferred date (YYYY-MM-DD)" placeholder="2026-10-25" value={serviceDate} onChangeText={setServiceDate} /><Field editable={!serviceBusy} label="Service address" value={address} onChangeText={setAddress} multiline /><Field editable={!serviceBusy} label="Mobile number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" /><Field editable={!serviceBusy} label="Anything else we should know?" value={notes} onChangeText={setNotes} multiline /><Button title={serviceBusy ? "Saving…" : "Book service"} disabled={serviceBusy} onPress={() => { void bookService(); }} /></View><Text style={[s.section, { marginTop: 28 }]}>Your service requests</Text>{servicesLoading && <ActivityIndicator color="#137c72" />}{!!servicesError && <View style={s.info}><Text style={s.infoText}>{servicesError}</Text><Button title="Retry service requests" onPress={retryServices} /></View>}{services.map(r => <View style={[s.card, { padding: 20, marginTop: 14, gap: 10 }]} key={r.id}><View style={s.rowBetween}><Text style={s.productTitle}>{r.type}</Text><Text style={s.badge}>{r.status}</Text></View><Text style={s.muted}>{r.date} · {r.address}</Text><Text style={s.small}>{r.id}</Text></View>)}</>}
       {tab === 'Profile' && <ProfileForm profile={profile} onNotice={setNotice} onLogout={() => logout().catch(e => setNotice(accountError(e)))} />}
@@ -201,7 +216,7 @@ export default function StoreScreen({ profile }: { profile: Profile }) {
     <View style={s.nav}>{(['Shop', 'Cart', 'Orders', 'Service', 'Profile'] as Tab[]).map((t, i) => <Pressable accessibilityRole="tab" accessibilityState={{ selected: tab === t }} key={t} style={[s.navItem, tab === t && s.navActive]} onPress={() => t === 'Service' ? openService() : setTab(t)}><Text style={[s.navIcon, tab === t && { color: '#11786e' }]}>{['⌂', '▤', '▣', '◇', '○'][i]}</Text><Text style={[s.navLabel, tab === t && { color: '#11786e', fontWeight: '700' }]}>{t}{t === 'Cart' && count > 0 ? ` (${count})` : ''}</Text></Pressable>)}</View>
     {!!notice && <Pressable accessibilityRole="alert" onPress={() => setNotice('')} style={s.toast}><Text style={s.toastText}>{notice}</Text><Text style={s.toastText}>×</Text></Pressable>}
     <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelectedId(null)}><View style={s.overlay}><ScrollView contentContainerStyle={s.modalWrap}><View style={s.sheet}>{selected && <><View style={s.rowBetween}><Text style={s.eyebrow}>{selected.category}</Text><Button title="Close ×" secondary onPress={() => setSelectedId(null)} /></View><Photo product={selected} large /><Text style={s.title}>{selected.name}</Text><Text style={s.muted}>{selected.description}</Text><Text style={s.small}>{selected.id} · {selected.stock} in stock</Text><Text style={s.price}>{displayPrice(selected)}</Text>{wholesale && <Text style={s.muted}>Minimum wholesale quantity: {selected.minBulk}</Text>}<Button title="Add to cart" onPress={() => { add(selected); setSelectedId(null); }} /></>}</View></ScrollView></View></Modal>
-    <Modal visible={checkout} transparent animationType="slide" onRequestClose={() => { if (!placingOrder) setCheckout(false); }}><View style={s.overlay}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.modalWrap}><View style={s.sheet}><View style={s.rowBetween}><Text style={s.section}>Checkout</Text><Button title="Close ×" secondary disabled={placingOrder} onPress={() => setCheckout(false)} /></View><Text style={s.muted}>Your prices and stock are checked before your order is reserved. Payment options will be available soon.</Text><Field label="Delivery address" value={address} onChangeText={setAddress} multiline /><Field label="10-digit mobile number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" /><View style={s.rowBetween}><Text style={s.section}>Total</Text><Text style={s.price}>{missingPrices ? 'Price unavailable' : money(total)}</Text></View><Button title={placingOrder ? "Reserving…" : "Reserve order"} disabled={!checkoutAvailable || catalogLoading || !!catalogError || missingPrices || !!unavailableItems || placingOrder} onPress={() => { void placeOrder(); }} /></View></ScrollView>{!!notice && <View accessibilityRole="alert" style={s.modalNotice}><Text style={s.toastText}>{notice}</Text></View>}</View></Modal>
+    <Modal visible={checkout} transparent animationType="slide" onRequestClose={() => { if (!placingOrder) setCheckout(false); }}><View style={s.overlay}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.modalWrap}><View style={s.sheet}><View style={s.rowBetween}><Text style={s.section}>Checkout</Text><Button title="Close ×" secondary disabled={placingOrder} onPress={() => setCheckout(false)} /></View><Text style={s.muted}>Your prices and stock are checked on the server. Razorpay opens in Test Mode; no real money is charged.</Text><Field label="Delivery address" value={address} onChangeText={setAddress} multiline /><Field label="10-digit mobile number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" /><View style={s.rowBetween}><Text style={s.section}>Total</Text><Text style={s.price}>{missingPrices ? 'Price unavailable' : money(total)}</Text></View><Button title={placingOrder ? "Opening checkout…" : "Pay with Razorpay · Test"} disabled={!checkoutAvailable || catalogLoading || !!catalogError || missingPrices || !!unavailableItems || placingOrder} onPress={() => { void placeOrder(); }} /></View></ScrollView>{!!notice && <View accessibilityRole="alert" style={s.modalNotice}><Text style={s.toastText}>{notice}</Text></View>}</View></Modal>
   </SafeAreaView>;
 }
 

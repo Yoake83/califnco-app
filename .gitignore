@@ -9,6 +9,7 @@ web-build/
 !.env.*.example
 .vercel/
 apps/admin/server/commerce-bundle.mjs
+apps/admin/server/razorpay-webhook-bundle.mjs
 .firebase/
 docs/previews/
 *.pem

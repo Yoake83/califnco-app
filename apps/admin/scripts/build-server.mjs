@@ -1,10 +1,10 @@
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
-await build({
+for (const [entry, output] of [['commerce-handler', 'commerce-bundle'], ['razorpay-webhook', 'razorpay-webhook-bundle']]) await build({
   absWorkingDir: fileURLToPath(new URL('..', import.meta.url)),
-  entryPoints: ['server/commerce-handler.ts'],
-  outfile: 'server/commerce-bundle.mjs',
+  entryPoints: [`server/${entry}.ts`],
+  outfile: `server/${output}.mjs`,
   bundle: true,
   platform: 'node',
   target: 'node24',

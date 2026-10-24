@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { adminServices } from './firebase-admin';
 import { CommerceError, createOrderService } from './orders';
+import { createPaymentService } from './payments';
+import { razorpayGateway } from './razorpay';
 
 type Request = IncomingMessage & { body?: unknown };
 function reply(response: ServerResponse, status: number, body: unknown) {
@@ -43,6 +45,17 @@ export default async function handler(request: Request, response: ServerResponse
     const service = createOrderService(db);
     const actor = { uid: account.uid, admin: account.admin === true };
     switch (input.action) {
+      case 'payment-ready': {
+        razorpayGateway();
+        if ((process.env.RAZORPAY_WEBHOOK_SECRET || '').length < 20) throw new CommerceError(503, 'Test payments are being configured. Please try again later.');
+        return reply(response, 200, { ready: true });
+      }
+      case 'payment-prepare': {
+        if ((process.env.RAZORPAY_WEBHOOK_SECRET || '').length < 20) throw new CommerceError(503, 'Test payments are being configured. Please try again later.');
+        return reply(response, 200, { checkout: await createPaymentService(db, razorpayGateway()).prepare(input.orderId, actor.uid) });
+      }
+      case 'payment-verify': return reply(response, 200, { order: await createPaymentService(db, razorpayGateway()).verify(actor.uid, input) });
+      case 'payment-refresh': return reply(response, 200, { order: await createPaymentService(db, razorpayGateway()).reconcile(input.orderId, actor.uid, actor.admin) });
       case 'create': return reply(response, 200, { order: await service.create(actor.uid, input) });
       case 'cancel': {
         if (typeof input.orderId !== 'string') throw new CommerceError(400, 'Choose an order.');

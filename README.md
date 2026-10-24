@@ -2,7 +2,7 @@
 
 React Native + Expo Android app, React admin panel and shared TypeScript/Firebase services for the Califnco Round 1 assignment.
 
-**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The admin and order API are deployed at https://califnco-admin-orpin.vercel.app. The private server credential is configured; authenticated order checks remain pending. Checkout stays unavailable until the API URL is configured. Razorpay, notifications, map selection, social automation and APK/device testing remain outstanding.
+**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The admin and order API are deployed at https://califnco-admin-orpin.vercel.app. The private server credential is configured; authenticated order checks remain pending. Razorpay test checkout, payment verification and webhooks are implemented; private Razorpay setup and provider/device testing remain pending. Notifications, map selection, social automation and APK/device testing remain outstanding. See `docs/razorpay-test-checkout.md`.
 
 ## Run
 
@@ -24,7 +24,7 @@ For local API work with trusted server credentials, run `npm run server`. See `.
 - Pending dealer applications, protected admin review, approve/reject/reopen actions and live approval updates.
 - Shared product catalog, category/search/price filtering, details, admin product/price/stock/visibility editing and private wholesale prices. Concurrent edits are detected.
 - Per-account local cart, quantity and bulk limits, current product estimates and persistent checkout retry keys.
-- Order server with Firebase token verification, role/pricing checks, atomic inventory reservations, duplicate prevention, cancellation, expiration and protected paid-order status transitions. Online deployment and payment integration remain incomplete.
+- Order server with Firebase token verification, role/pricing checks, atomic inventory reservations, duplicate prevention, cancellation, expiration and protected paid-order status transitions. Deployed to Vercel; test payment verification and webhooks are implemented, with private Razorpay setup pending.
 - Shared service bookings, calendar validation, private request history and admin status management, with published access rules.
 - Admin overview and exports use shared records. Old local demo order/service records are not displayed or imported.
 

@@ -1,9 +1,10 @@
 import { auth } from '../firebase';
 import type { CommerceOrder } from '@califnco/core';
 
-export const checkoutAvailable = !!process.env.EXPO_PUBLIC_COMMERCE_API_URL;
-export async function commerce(input: unknown): Promise<{ order: CommerceOrder }> {
-  const url = process.env.EXPO_PUBLIC_COMMERCE_API_URL;
+const commerceUrl = process.env.EXPO_PUBLIC_COMMERCE_API_URL || 'https://califnco-admin-orpin.vercel.app/api/commerce';
+export const checkoutAvailable = !!commerceUrl;
+export async function commerce<T = { order: CommerceOrder }>(input: unknown): Promise<T> {
+  const url = commerceUrl;
   if (!url) throw new Error('Ordering is being set up. Please try again later.');
   const user = auth.currentUser;
   if (!user) throw new Error('Sign in before ordering.');

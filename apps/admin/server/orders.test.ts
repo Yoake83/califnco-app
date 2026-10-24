@@ -7,6 +7,10 @@ import handler from './commerce-handler';
 import { createServer, type Server } from 'node:http';
 import { initializeApp as clientApp, deleteApp as deleteClientApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { createHmac } from 'node:crypto';
+import { createPaymentService } from './payments';
+import { razorpayGateway, validSignature, type GatewayPayment, type GatewayRefund, type PaymentGateway } from './razorpay';
+import webhook from './razorpay-webhook';
 
 const app = initializeApp({ projectId: 'demo-califnco' }, 'order-tests');
 let db: Firestore;
@@ -20,6 +24,7 @@ before(() => {
 });
 beforeEach(async () => {
   await db.recursiveDelete(db.collection('orders')); await db.recursiveDelete(db.collection('reservations')); await db.recursiveDelete(db.collection('checkoutLimits'));
+  for (const collection of ['gatewayOrders', 'paymentReceipts', 'refundJobs']) await db.recursiveDelete(db.collection(collection));
   time = new Date('2026-10-24T10:00:00.000Z');
   await db.doc('users/alice').set({ name: 'QA Customer', role: 'Customer', approval: 'approved' });
   await db.doc('users/dealer').set({ name: 'QA Dealer', role: 'Dealer', approval: 'pending' });
@@ -99,8 +104,147 @@ test('HTTP API verifies Firebase tokens and admin access, rejects untrusted orig
     const { order } = await response.json() as { order: { id: string; total: number; userId: string } };
     assert.equal(order.total, 1000); assert.equal(order.userId, credential.user.uid);
     assert.equal((await send({ action: 'status', orderId: order.id, status: 'Delivered' })).status, 403);
+    assert.equal((await send({ action: 'payment-ready' })).status, 503);
   } finally {
     await new Promise<void>((resolve, reject) => httpServer.close(error => error ? reject(error) : resolve()));
     await deleteClientApp(client);
+  }
+});
+
+function fakeGateway() {
+  let creates = 0; let refunds = 0; let captures = 0;
+  const payments = new Map<string, GatewayPayment>();
+  const refundRecords = new Map<string, GatewayRefund>();
+  const gateway: PaymentGateway = {
+    keyId: 'rzp_test_synthetic', secret: 'synthetic-test-secret-only',
+    async createOrder(amount, receipt) { creates++; return { id: `order_QA${creates}`, amount, currency: 'INR', receipt }; },
+    async payment(id) { return { ...payments.get(id)! }; },
+    async payments(id) { return [...payments.values()].filter(payment => payment.order_id === id).map(payment => ({ ...payment })); },
+    async capture(id) { captures++; const payment = payments.get(id)!; payment.status = 'captured'; return { ...payment }; },
+    async refund(id, amount) {
+      if (!refundRecords.has(id)) { refunds++; refundRecords.set(id, { id: `rfnd_${id}`, payment_id: id, amount, status: 'processed' }); }
+      return refundRecords.get(id)!;
+    },
+    async fetchRefund(id) { return [...refundRecords.values()].find(refund => refund.id === id)!; },
+  };
+  const result = (orderId: string, paymentId: string) => ({ razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: createHmac('sha256', gateway.secret).update(`${orderId}|${paymentId}`).digest('hex') });
+  return { gateway, payments, result, stats: () => ({ creates, refunds, captures }) };
+}
+
+test('payment preparation is owner-only, rejects pending dealers, and reuses one provider order', async () => {
+  const fake = fakeGateway(); const service = createPaymentService(db, fake.gateway, () => time);
+  const order = await createOrderService(db, () => time).create('alice', input());
+  await assert.rejects(service.prepare(order.id, 'dealer'), /cannot access/);
+  const concurrent = await Promise.allSettled([service.prepare(order.id, 'alice'), service.prepare(order.id, 'alice')]);
+  assert.ok(concurrent.some(result => result.status === 'fulfilled'));
+  assert.equal(fake.stats().creates, 1);
+  const checkout = await service.prepare(order.id, 'alice');
+  assert.equal(checkout.amount, 100000); assert.equal(checkout.order_id, 'order_QA1');
+  await db.doc('users/alice').update({ approval: 'pending' });
+  await assert.rejects(service.prepare(order.id, 'alice'), /approved/);
+});
+
+test('signed callbacks still require matching captured amount/currency; valid capture is idempotent', async () => {
+  const fake = fakeGateway(); const service = createPaymentService(db, fake.gateway, () => time);
+  const orders = createOrderService(db, () => time);
+  const order = await orders.create('alice', input());
+  const checkout = await service.prepare(order.id, 'alice');
+  const payment: GatewayPayment = { id: 'pay_QA1', order_id: checkout.order_id, amount: checkout.amount, currency: 'INR', status: 'authorized', amount_refunded: 0 };
+  fake.payments.set(payment.id, payment);
+  const callback = { orderId: order.id, ...fake.result(checkout.order_id, payment.id) };
+  await assert.rejects(service.verify('alice', { ...callback, razorpay_signature: '0'.repeat(64) }), /signature/);
+  await assert.rejects(service.verify('dealer', callback), /cannot access/);
+  payment.amount = 1;
+  await assert.rejects(service.verify('alice', callback), /amount or currency/);
+  payment.amount = checkout.amount; payment.currency = 'USD';
+  await assert.rejects(service.verify('alice', callback), /amount or currency/);
+  payment.currency = 'INR';
+  const paid = await service.verify('alice', callback);
+  assert.equal(paid.paymentState, 'paid'); assert.equal(paid.status, 'Confirmed');
+  await Promise.all([service.verify('alice', callback), service.reconcile(order.id, 'alice')]);
+  assert.equal(fake.stats().captures, 1); assert.equal(fake.stats().refunds, 0);
+  assert.equal((await db.doc('checkoutLimits/alice').get()).data()?.pending, 0);
+  assert.equal((await db.doc('products/QA-100').get()).data()?.stock, 2);
+  await orders.updateStatus(order.id, 'Processing');
+  await assert.rejects(orders.cancel(order.id, { uid: 'alice', admin: false }), /paid order/);
+});
+
+test('late payment after expiry is refunded once and never creates fulfillment or double releases stock', async () => {
+  const fake = fakeGateway(); const service = createPaymentService(db, fake.gateway, () => time);
+  const orders = createOrderService(db, () => time);
+  const order = await orders.create('alice', input()); const checkout = await service.prepare(order.id, 'alice');
+  fake.payments.set('pay_LATE', { id: 'pay_LATE', order_id: checkout.order_id, amount: checkout.amount, currency: 'INR', status: 'captured', amount_refunded: 0 });
+  time = new Date(time.getTime() + 16 * 60000);
+  await orders.expireReservations();
+  const refunded = await service.verify('alice', { orderId: order.id, ...fake.result(checkout.order_id, 'pay_LATE') });
+  assert.equal(refunded.paymentState, 'refunded');
+  await service.reconcile(order.id, 'alice');
+  assert.equal(fake.stats().refunds, 1);
+  assert.equal((await db.doc('products/QA-100').get()).data()?.stock, 3);
+  assert.equal((await db.doc('checkoutLimits/alice').get()).data()?.pending, 0);
+  await assert.rejects(orders.updateStatus(order.id, 'Processing'), /paid order/);
+});
+
+test('cancel/capture race is atomic; a second captured payment is refunded without changing a paid order', async () => {
+  const fake = fakeGateway(); const service = createPaymentService(db, fake.gateway, () => time); const orders = createOrderService(db, () => time);
+  const order = await orders.create('alice', input()); const checkout = await service.prepare(order.id, 'alice');
+  for (const id of ['pay_FIRST', 'pay_SECOND']) fake.payments.set(id, { id, order_id: checkout.order_id, amount: checkout.amount, currency: 'INR', status: 'captured', amount_refunded: 0 });
+  await service.verify('alice', { orderId: order.id, ...fake.result(checkout.order_id, 'pay_FIRST') });
+  await Promise.all([service.processPayment(fake.payments.get('pay_SECOND')!), service.processPayment(fake.payments.get('pay_SECOND')!)]);
+  assert.equal(fake.stats().refunds, 1);
+  assert.equal((await db.doc(`orders/${order.id}`).get()).data()?.paymentId, 'pay_FIRST');
+  assert.equal((await db.doc(`orders/${order.id}`).get()).data()?.paymentState, 'paid');
+  const other = await orders.create('alice', input(1, 'checkout-key-race-0001')); const second = await service.prepare(other.id, 'alice');
+  fake.payments.set('pay_RACE', { id: 'pay_RACE', order_id: second.order_id, amount: second.amount, currency: 'INR', status: 'captured', amount_refunded: 0 });
+  await Promise.allSettled([orders.cancel(other.id, { uid: 'alice', admin: false }), service.verify('alice', { orderId: other.id, ...fake.result(second.order_id, 'pay_RACE') })]);
+  await service.reconcile(other.id, 'alice');
+  const final = (await db.doc(`orders/${other.id}`).get()).data()!;
+  assert.ok(['paid', 'refunded'].includes(final.paymentState));
+  assert.equal((await db.doc('products/QA-100').get()).data()?.stock, final.paymentState === 'paid' ? 1 : 2);
+});
+
+test('Razorpay adapter refuses live keys and signs raw webhooks without parsing or trusting event IDs', async () => {
+  const previous = { key: process.env.RAZORPAY_KEY_ID, secret: process.env.RAZORPAY_KEY_SECRET, webhook: process.env.RAZORPAY_WEBHOOK_SECRET };
+  process.env.RAZORPAY_KEY_ID = 'rzp_live_disallowed'; process.env.RAZORPAY_KEY_SECRET = 'synthetic-secret';
+  assert.throws(() => razorpayGateway(), /Test payments/);
+  const secret = 'synthetic-webhook-secret-at-least-20'; process.env.RAZORPAY_WEBHOOK_SECRET = secret;
+  const raw = '{ "event": "unrelated.event", "payload": {} }';
+  const signature = createHmac('sha256', secret).update(raw).digest('hex');
+  assert.equal(validSignature(raw, signature, secret), true);
+  assert.equal(validSignature(raw + ' ', signature, secret), false);
+  const server = createServer((request, response) => { void webhook(request, response); });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  try {
+    assert.equal((await fetch(url, { method: 'POST', body: raw, headers: { 'x-razorpay-signature': signature } })).status, 200);
+    assert.equal((await fetch(url, { method: 'POST', body: raw + ' ', headers: { 'x-razorpay-signature': signature } })).status, 400);
+    assert.equal((await fetch(url, { method: 'POST', body: raw })).status, 400);
+  } finally {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    for (const [key, value] of Object.entries({ RAZORPAY_KEY_ID: previous.key, RAZORPAY_KEY_SECRET: previous.secret, RAZORPAY_WEBHOOK_SECRET: previous.webhook })) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  }
+});
+
+test('provider adapter recovers receipt lookups and uses stable refund idempotency headers', async () => {
+  const originalFetch = globalThis.fetch;
+  const previousKey = process.env.RAZORPAY_KEY_ID; const previousSecret = process.env.RAZORPAY_KEY_SECRET;
+  process.env.RAZORPAY_KEY_ID = 'rzp_test_synthetic'; process.env.RAZORPAY_KEY_SECRET = 'synthetic-secret-only';
+  const requests: { url: string; options?: RequestInit }[] = [];
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url: String(url), options });
+    return new Response(JSON.stringify(String(url).includes('orders?') ? { items: [{ id: 'order_RECOVERED', receipt: 'CF-receipt', amount: 12300, currency: 'INR' }] } : { id: 'rfnd_QA', payment_id: 'pay_QA', amount: 12300, status: 'processed' }), { status: 200 });
+  };
+  try {
+    const gateway = razorpayGateway();
+    assert.equal((await gateway.createOrder(12300, 'CF-receipt')).id, 'order_RECOVERED');
+    assert.equal(requests.length, 1); assert.match(requests[0].url, /receipt=CF-receipt/);
+    await gateway.refund('pay_QA', 12300); await gateway.refund('pay_QA', 12300);
+    assert.equal((requests[1].options?.headers as Record<string, string>)['X-Refund-Idempotency'], 'califnco-refund-pay_QA');
+    assert.deepEqual(requests[1], requests[2]);
+    assert.equal(requests[1].options?.body, JSON.stringify({ amount: 12300, speed: 'normal' }));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousKey === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = previousKey;
+    if (previousSecret === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = previousSecret;
   }
 });

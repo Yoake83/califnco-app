@@ -122,5 +122,36 @@ export function createOrderService(db: Firestore, clock = () => new Date()) {
       return { ...order, status };
     });
   }
-  return { create, cancel: (orderId: string, actor: { uid: string; admin: boolean }) => release(orderId, actor), expireReservations, updateStatus };
+  // Only call after fetching and validating the captured payment with the provider.
+  async function settlePayment(orderId: string, gatewayOrderId: string, paymentId: string, amount: number) {
+    return db.runTransaction(async transaction => {
+      const ref = db.doc(`orders/${orderId}`);
+      const receiptRef = db.doc(`paymentReceipts/${paymentId}`);
+      const [snapshot, receipt] = await transaction.getAll(ref, receiptRef);
+      if (!snapshot.exists) throw new CommerceError(404, 'Order not found.');
+      const order = snapshot.data() as CommerceOrder;
+      if (order.razorpayOrderId !== gatewayOrderId || amount !== order.total * 100) throw new CommerceError(409, 'Payment does not match this order.');
+      if (receipt.exists) {
+        if (receipt.data()!.orderId !== orderId) throw new CommerceError(409, 'Payment already belongs to another order.');
+        return order;
+      }
+      const limitRef = db.doc(`checkoutLimits/${order.userId}`);
+      const limit = await transaction.get(limitRef);
+      const now = clock().toISOString();
+      const refund = order.paymentState !== 'pending' || !order.inventoryHeld || order.expiresAt <= now;
+      if (refund && order.inventoryHeld && order.paymentState === 'pending') await changeStock(transaction, order.items, 1);
+      if (order.inventoryHeld && order.paymentState === 'pending') {
+        transaction.set(limitRef, { pending: Math.max(0, (limit.data()?.pending ?? 1) - 1) });
+        transaction.delete(db.doc(`reservations/${orderId}`));
+      }
+      transaction.create(receiptRef, { orderId, paymentId, amount, refund, createdAt: now });
+      if (refund) transaction.create(db.doc(`refundJobs/${paymentId}`), { orderId, paymentId, amount, status: 'pending', createdAt: now });
+      // A second captured payment is refunded without changing a previously paid order.
+      if (order.paymentState === 'paid' || order.paymentId) return order;
+      const updated: CommerceOrder = { ...order, paymentId, paymentState: refund ? 'refund_pending' : 'paid', status: refund ? 'Refund pending' : 'Confirmed', inventoryHeld: false, updatedAt: now };
+      transaction.set(ref, updated);
+      return updated;
+    });
+  }
+  return { create, cancel: (orderId: string, actor: { uid: string; admin: boolean }) => release(orderId, actor), expireReservations, updateStatus, settlePayment };
 }

@@ -13,7 +13,8 @@ export interface CommerceOrder {
   id: string; userId: string; customer: string; role: Role;
   items: (CartItem & { name: string; unitPrice: number })[];
   total: number; address: string; phone: string; status: string;
-  paymentState: 'pending' | 'paid' | 'cancelled' | 'expired'; paymentMode: 'test';
+  paymentState: 'pending' | 'paid' | 'cancelled' | 'expired' | 'refund_pending' | 'refunded'; paymentMode: 'test';
+  razorpayOrderId?: string; paymentId?: string; paymentLease?: string; paymentLeaseUntil?: string;
   createdAt: string; updatedAt: string; expiresAt: string; inventoryHeld: boolean; fingerprint: string;
 }
 export interface Order { id: string; userId: string; customer: string; role: Role; items: (CartItem & { name: string; unitPrice: number })[]; total: number; address: string; phone: string; status: OrderStatus; createdAt: string; payment: 'Demo - no charge'; }
