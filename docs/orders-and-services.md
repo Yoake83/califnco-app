@@ -2,7 +2,7 @@
 
 ## Order server
 
-`apps/admin/api/commerce.ts` is a Node server function intended for the same Vercel project as the admin panel. It verifies Firebase ID tokens and rejects untrusted browser origins. It supports creating unpaid reservations, cancelling unpaid orders, admin delivery status updates and admin expiration cleanup.
+`apps/admin/api/commerce.js` loads the bundled Node server handler from `server/commerce-handler.ts` in the same Vercel project as the admin panel. It verifies Firebase ID tokens and rejects untrusted browser origins. It supports creating unpaid reservations, cancelling unpaid orders, admin delivery status updates and admin expiration cleanup. See `docs/vercel-deployment.md` for hosting and credential setup status.
 
 The server reads the current profile, catalog prices and inventory. Clients cannot choose wholesale eligibility, prices, totals or payment status. A Firestore transaction creates the order and reserves stock together. An idempotency key is scoped to the signed-in account; repeating the same request returns the existing order, and using the same key for a different cart is rejected. Each account can hold at most three unpaid orders. Concurrent checkouts cannot oversell the same stock.
 
