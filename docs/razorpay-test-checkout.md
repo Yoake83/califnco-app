@@ -2,7 +2,7 @@
 
 The Expo app uses Razorpay's official React Native SDK on Android and Standard Checkout in the web preview. Vercel creates provider orders and verifies captured payments. Live keys are explicitly rejected. No secret is shipped in the app.
 
-Deployment status, 24 October 2026: the payment integration is deployed to Vercel. The owner saved all three private payment variable names in Production; their presence was verified without revealing their values. The webhook was verified enabled in Razorpay Test Mode with the correct URL, a configured secret and all five selected events. The deployed endpoint rejects unsigned webhook requests with HTTP 400. Actual test-account checkout and installed Android testing remain pending.
+Deployment status, 24 October 2026: the payment integration is deployed to Vercel. The owner saved all three private payment variable names in Production; their presence was verified without revealing their values. The webhook was verified enabled in Razorpay Test Mode with the correct URL, a configured secret and all five selected events. The deployed endpoint rejects unsigned webhook requests with HTTP 400. An authenticated browser checkout against the deployed backend succeeded; installed Android testing remains pending.
 
 ## Private setup
 
@@ -35,6 +35,16 @@ Expiration/cancellation and payment confirmation are serialized by transactions.
 
 26 Firebase/server tests and 7 domain tests pass. They cover owner/admin access, forged signatures, amount/currency mismatch, capture verification, duplicate callbacks, receipt recovery, stable refund keys, late payments, cancellation races and raw webhook signatures. Type checks, mobile lint, admin build and web export pass. The Android JavaScript/Hermes export passed with the SDK; this does not verify native Android linking or an installed APK. Deployed endpoint checks returned 405 for a non-POST webhook request and 401 for an unsigned payment request.
 
-The SDK is not available in Expo Go. Use a development build or preview APK for Android testing. Web preview checkout is also supported. Actual Razorpay test-account transactions and dashboard webhook delivery still require owner setup and an approved account with a catalog product. No live payment has been made. Scheduled cleanup/reconciliation and synchronization of refunds initiated manually outside the app are not implemented.
+### Observed browser checkout, 24 October 2026
+
+- Signed-in customer reserved one temporary QA item for ₹1 through the web app at `http://127.0.0.1:8081`, using the deployed Vercel API and Firebase data. The preview origin was added to `APP_ORIGINS` and the deployment refreshed.
+- Order `CF-9177738d8a748cd57a5bc5dacb9f` appeared in both app and admin. Inventory decreased from 3 to 2.
+- The first card attempt was rejected by Razorpay as an international card. Retrying the same checkout with netbanking succeeded: payment `pay_TrisE06MvmhDUt` showed **Captured**, ₹1, in Razorpay Test Mode.
+- App and admin both showed **paid / Confirmed**. Reloading the app and refreshing its payment status preserved that result. No real money was charged.
+- Product `QA-CHECKOUT-001` was then hidden; the shop returned to zero visible products, while the paid test order remained available for audit. The owner's dealer application was approved with explicit permission.
+
+This verifies one successful browser payment and recovery from a rejected method. Independent webhook-only recovery, provider refunds, all payment methods and native Android behavior have not been verified against the provider dashboard. Do not infer complete payment coverage from this test.
+
+The SDK is not available in Expo Go. Use a development build or preview APK for Android testing. No live payment has been made. Scheduled cleanup/reconciliation and synchronization of refunds initiated manually outside the app are not implemented.
 
 References: [Razorpay React Native SDK](https://github.com/razorpay/react-native-razorpay), [Standard Checkout](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/), [webhook signatures](https://razorpay.com/docs/webhooks/validate-test/), [refund idempotency](https://github.com/razorpay/markdown-docs/blob/master/api/refunds/normal-refunds-idempotent.md).

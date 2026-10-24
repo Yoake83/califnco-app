@@ -10,7 +10,7 @@ Reservations last 15 minutes. Cancellation and expiration restore inventory once
 
 The mobile app and admin panel subscribe to shared order records. Owner queries are limited by UID; only admins can list all orders. All client order writes are denied by rules. The mobile client persists its checkout attempt before sending it, preserving the key across an uncertain response/restart. The local sample order history is no longer displayed.
 
-**Deployment boundary:** admin and API are deployed at `https://califnco-admin-orpin.vercel.app`. Method and unsigned-request checks pass. The private server credential is configured; authenticated order verification remains pending. The app defaults to the deployed API URL. Private Razorpay variables and webhook registration still require owner setup; payment readiness is checked before reserving a new cart. Do not accept live payments or fulfillment orders.
+**Deployment boundary:** admin and API are deployed at `https://califnco-admin-orpin.vercel.app`. Method and unsigned-request checks pass. The private server credential, Razorpay test variables and webhook registration are configured. On 24 October 2026, an authenticated ₹1 browser netbanking checkout was captured by Razorpay and appeared as paid/Confirmed in app and admin, with one inventory unit consumed. The app defaults to the deployed API URL; payment readiness is checked before reserving a new cart. Device testing and independent webhook/refund verification remain pending. Do not accept live payments or fulfillment orders.
 
 ## Service bookings
 
@@ -25,7 +25,7 @@ On 24 October 2026, with explicit user approval, the service and order-history r
 1. Create your own Vercel account. Deploy `apps/admin` with workspace dependencies available and the existing `vercel.json` configuration. The `api` directory must deploy as Node functions, alongside the static admin UI.
 2. Configure a server identity for `califnco-176c3` in Vercel's private environment settings. The code supports Application Default Credentials in a trusted Google environment, or `FIREBASE_SERVICE_ACCOUNT_JSON` on a host that needs a server credential. Do not use the public Android/web configuration as this credential. Keep server secrets out of `VITE_` and `EXPO_PUBLIC_` variables.
 3. Set `APP_ORIGINS` to the exact web/admin origins, separated by commas. Set the mobile API URL to `https://YOUR-DEPLOYMENT/api/commerce` and rebuild the app.
-4. Create your own Razorpay account and open its test dashboard. Add test credentials directly to the server settings when payment integration is implemented; do not paste secrets into chat. Finish signature/capture/webhook verification and reservation reconciliation before enabling checkout.
+4. Razorpay Test Mode is configured and one browser checkout is verified. Keep credentials in the server settings. Complete installed Android testing, independent webhook recovery and provider refund checks before launch.
 
 For local server work, use Node 24.12+ and a trusted ADC environment or a local ignored `.env.local` configured from `.env.example`. Run `npm run server` from the repository root; the API binds to loopback on port 3001. The admin development server proxies `/api` to it. These local server credentials are not configured on the current computer.
 

@@ -2,7 +2,7 @@
 
 React Native + Expo Android app, React admin panel and shared TypeScript/Firebase services for the Califnco Round 1 assignment.
 
-**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The admin and order API are deployed at https://califnco-admin-orpin.vercel.app. The private server credential is configured; authenticated order checks remain pending. Razorpay test checkout, payment verification and webhooks are implemented; private Razorpay settings and the Test Mode webhook are configured; provider checkout/device testing remain pending. Notifications, map selection, social automation and APK/device testing remain outstanding. See `docs/razorpay-test-checkout.md`.
+**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The admin and order API are deployed at https://califnco-admin-orpin.vercel.app. A ₹1 Razorpay Test Mode browser purchase verified authenticated checkout, captured payment, inventory consumption and shared paid/Confirmed status in app and admin. Private payment settings and the Test Mode webhook are configured. Independent webhook recovery, provider refunds, notifications, map selection, social automation and APK/device testing remain outstanding. See `docs/razorpay-test-checkout.md`.
 
 ## Run
 
