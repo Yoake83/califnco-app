@@ -6,6 +6,8 @@ Run EAS commands from `apps/mobile`. Build with `npx eas-cli@latest build --plat
 
 ## Phone checks
 
+Preview APK build [2e727033](https://expo.dev/accounts/devika83s-team/projects/yoake/builds/2e727033-538f-4474-9d00-4e6b6684e0e1) succeeded on 24 October 2026, version 1.0.0 (1), using Node 24.22.1. The initial build was cancelled after detecting the default Node 22 dependency mismatch. Native compilation and signed packaging succeeded; installation and runtime checks on the physical phone remain pending.
+
 1. Download the successful preview build's APK on the phone and install it. Open Califnco and confirm it launches without crashing.
 2. Sign in with an existing app account. Verify profile role, dealer approval where applicable, and order history. Restart the app and confirm the sign-in persists.
 3. Enable a clearly labelled temporary QA product in admin. Verify it appears on the phone; check the applicable retail/wholesale price and quantity rules.
