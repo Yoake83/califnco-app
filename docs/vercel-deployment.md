@@ -8,8 +8,8 @@ Production environment settings:
 
 - `APP_ORIGINS`: `https://califnco-admin-orpin.vercel.app`. Add other exact browser origins only when they are used by the app.
 - `NODE_OPTIONS`: `--experimental-require-module`. Firebase Admin 14's authentication dependency requires this option on Vercel, which disables Node's require(ESM) support by default. See [Vercel's runtime documentation](https://vercel.com/docs/functions/runtimes/node-js/advanced-node-configuration#experimental-node.js-require-of-es-module).
-- `FIREBASE_SERVICE_ACCOUNT_JSON`: private server credential for `califnco-176c3`. The owner reported saving it directly in Vercel as a Production Secret on 24 October 2026. Its value was not shared in chat or committed. Authenticated order access still requires end-to-end verification. Never use a `VITE_` or `EXPO_PUBLIC_` prefix for this credential.
+- `FIREBASE_SERVICE_ACCOUNT_JSON`: private server credential for `califnco-176c3`. Owner input is still pending: the Production variable list does not yet contain this name. Its value has not been shared in chat or committed. Never use a `VITE_` or `EXPO_PUBLIC_` prefix for this credential.
 
-Environment changes require redeployment. The admin sign-in page does not require server credentials; authenticated commerce actions do. Razorpay payment integration remains unimplemented, so payment keys are not consumed yet. No payment or fulfillment readiness is implied by this deployment.
+Environment changes require redeployment. The admin sign-in page does not require server credentials; authenticated commerce actions do. Deployed checks passed: admin page HTTP 200, unsupported API method HTTP 405, unsigned API request HTTP 401. Authenticated order access is not yet verified. Razorpay payment integration remains unimplemented, so payment keys are not consumed yet. No payment or fulfillment readiness is implied by this deployment.
 
 Do not commit downloaded credential JSON files, local environment files or account screenshots.

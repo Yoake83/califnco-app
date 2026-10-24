@@ -2,7 +2,7 @@
 
 React Native + Expo Android app, React admin panel and shared TypeScript/Firebase services for the Califnco Round 1 assignment.
 
-**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The order server is implemented and emulator-tested but not deployed. Checkout stays unavailable until the API URL is configured. Razorpay, notifications, map selection, social automation, public hosting and APK/device testing remain outstanding.
+**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The admin and order API are deployed at https://califnco-admin-orpin.vercel.app. Private server credential setup and authenticated order checks remain pending. Checkout stays unavailable until the API URL is configured. Razorpay, notifications, map selection, social automation and APK/device testing remain outstanding.
 
 ## Run
 
@@ -55,6 +55,6 @@ The checked-in Android Firebase configuration matches `com.califnco.store`; conf
 - `docs/orders-and-services.md`: order server, service bookings and account/server setup.
 - `docs/requirements.md`: the assignment requirements and deadline.
 
-Vercel root directory: `apps/admin`; install workspace dependencies from the repository root, build with the app's build script and serve `dist`. Its `api` directory must deploy as Node functions. Use Node 24.x. Keep server credentials in private hosting settings; never in mobile/web public environment variables. A public Vercel URL has not been created.
+Vercel root directory: `apps/admin`; install workspace dependencies from the repository root, build with the app's build script and serve `dist`. Its `api` directory deploys as Node functions. Use Node 24.x. Keep server credentials in private hosting settings; never in mobile/web public environment variables. See `docs/vercel-deployment.md` for the deployed URL, runtime option and remaining credential setup.
 
 No real payments, refunds, fulfillment orders, social posts or assignment submissions have been made. UI redesign is deferred until the functional work is complete, as requested.
