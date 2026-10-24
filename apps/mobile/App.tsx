@@ -183,7 +183,7 @@ export default function StoreScreen({ profile }: { profile: Profile }) {
   const screenTitle = { Shop: 'Find your everyday pure.', Cart: 'Your cart', Orders: 'Your orders', Service: 'A little care. A lot of purity.', Profile: 'Make yourself at home.' }[tab];
   if (!ready) return <View style={[s.page, s.center]}><ActivityIndicator color="#137c72" /><Text style={s.muted}>Getting your store ready…</Text></View>;
   return <SafeAreaView style={s.page}><StatusBar style="dark" />
-    <View style={s.demoBar}><Text style={s.demoText}>LIVE CATALOG · Ordering setup in progress</Text></View>
+    <View style={s.demoBar}><Text style={s.demoText}>LIVE CATALOG · Razorpay Test Mode · no real charges</Text></View>
     <View style={s.header}><View style={s.row}><View style={s.logoSmall}><Text style={[s.logoText, { fontSize: 25 }]}>c.</Text></View><View><Text style={s.brand}>califnco</Text><Text style={s.small}>PURE WATER. BETTER LIVING.</Text></View></View><Pressable accessibilityRole="button" onPress={() => setTab('Profile')} style={s.avatar}><Text style={{ color: '#126d66', fontWeight: '700' }}>{profile.name.split(' ').filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</Text></Pressable></View>
     <ScrollView ref={scrollRef} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
       <View style={s.rowBetween}><Text style={s.eyebrow}>{role === 'Dealer' ? 'DEALER PORTAL' : 'YOUR DAILY DOSE OF PURITY'}</Text><Text style={s.small}>Hello, {profile.name.split(' ')[0]}</Text></View>

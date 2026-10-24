@@ -57,7 +57,7 @@ export default function AuthScreen() {
         <Pressable accessibilityRole="button" disabled={busy} style={styles.secondary} onPress={() => navigate(mode === 'login' ? 'register' : 'login')}><Text style={styles.link}>{mode === 'login' ? `Create a ${role.toLowerCase()} account` : 'Already registered? Sign in'}</Text></Pressable>
       </>}
     </>}
-  </View><Text style={styles.small}>Sample catalog · checkout and orders are still a local demo.</Text></ScrollView></KeyboardAvoidingView></SafeAreaView>;
+  </View><Text style={styles.small}>Shared catalog and orders · Razorpay Test Mode · no real charges.</Text></ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
