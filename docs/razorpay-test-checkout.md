@@ -2,6 +2,8 @@
 
 The Expo app uses Razorpay's official React Native SDK on Android and Standard Checkout in the web preview. Vercel creates provider orders and verifies captured payments. Live keys are explicitly rejected. No secret is shipped in the app.
 
+Deployment status, 24 October 2026: the payment integration is deployed to Vercel. The owner saved all three private payment variable names in Production; their presence was verified without revealing their values. Razorpay webhook creation is in progress. Actual test-account checkout and installed Android testing remain pending.
+
 ## Private setup
 
 In Vercel → califnco-admin → Settings → Environments → Production, add these as **Secret** variables:
@@ -31,7 +33,7 @@ Expiration/cancellation and payment confirmation are serialized by transactions.
 
 ## Verification and limits
 
-26 Firebase/server tests and 7 domain tests pass. They cover owner/admin access, forged signatures, amount/currency mismatch, capture verification, duplicate callbacks, receipt recovery, stable refund keys, late payments, cancellation races and raw webhook signatures. Type checks, mobile lint and admin build pass. The Android JavaScript/Hermes export passed with the SDK; this does not verify native Android linking or an installed APK.
+26 Firebase/server tests and 7 domain tests pass. They cover owner/admin access, forged signatures, amount/currency mismatch, capture verification, duplicate callbacks, receipt recovery, stable refund keys, late payments, cancellation races and raw webhook signatures. Type checks, mobile lint, admin build and web export pass. The Android JavaScript/Hermes export passed with the SDK; this does not verify native Android linking or an installed APK. Deployed endpoint checks returned 405 for a non-POST webhook request and 401 for an unsigned payment request.
 
 The SDK is not available in Expo Go. Use a development build or preview APK for Android testing. Web preview checkout is also supported. Actual Razorpay test-account transactions and dashboard webhook delivery still require owner setup and an approved account with a catalog product. No live payment has been made. Scheduled cleanup/reconciliation and synchronization of refunds initiated manually outside the app are not implemented.
 
