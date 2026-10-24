@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { deleteApp, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { createOrderService } from './orders';
-import handler from '../api/commerce';
+import handler from './commerce-handler';
 import { createServer, type Server } from 'node:http';
 import { initializeApp as clientApp, deleteApp as deleteClientApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth } from 'firebase/auth';

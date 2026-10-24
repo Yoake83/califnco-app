@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { adminServices } from '../server/firebase-admin';
-import { CommerceError, createOrderService } from '../server/orders';
+import { adminServices } from './firebase-admin';
+import { CommerceError, createOrderService } from './orders';
 
 type Request = IncomingMessage & { body?: unknown };
 function reply(response: ServerResponse, status: number, body: unknown) {

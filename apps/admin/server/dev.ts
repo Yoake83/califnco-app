@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import handler from '../api/commerce';
+import handler from './commerce-handler';
 
 const port = Number(process.env.COMMERCE_PORT || '3001');
 createServer((request, response) => {
