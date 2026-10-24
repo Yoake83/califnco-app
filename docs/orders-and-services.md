@@ -10,7 +10,7 @@ Reservations last 15 minutes. Cancellation and expiration restore inventory once
 
 The mobile app and admin panel subscribe to shared order records. Owner queries are limited by UID; only admins can list all orders. All client order writes are denied by rules. The mobile client persists its checkout attempt before sending it, preserving the key across an uncertain response/restart. The local sample order history is no longer displayed.
 
-**Deployment boundary:** admin and API are deployed at `https://califnco-admin-orpin.vercel.app`. Method and unsigned-request checks pass. Private server credential setup and authenticated order verification remain pending. Checkout is disabled until `EXPO_PUBLIC_COMMERCE_API_URL` is set. Razorpay is not implemented yet. Do not accept live payments or fulfillment orders.
+**Deployment boundary:** admin and API are deployed at `https://califnco-admin-orpin.vercel.app`. Method and unsigned-request checks pass. The private server credential is configured; authenticated order verification remains pending. Checkout is disabled until `EXPO_PUBLIC_COMMERCE_API_URL` is set. Razorpay is not implemented yet. Do not accept live payments or fulfillment orders.
 
 ## Service bookings
 

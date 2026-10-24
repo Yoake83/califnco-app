@@ -2,7 +2,7 @@
 
 React Native + Expo Android app, React admin panel and shared TypeScript/Firebase services for the Califnco Round 1 assignment.
 
-**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The admin and order API are deployed at https://califnco-admin-orpin.vercel.app. Private server credential setup and authenticated order checks remain pending. Checkout stays unavailable until the API URL is configured. Razorpay, notifications, map selection, social automation and APK/device testing remain outstanding.
+**In progress, not submission-ready.** Login, profiles, protected admin access, dealer approvals and shared catalog management are connected to Firebase. Shared service bookings and private order history are implemented with published rules; see `docs/orders-and-services.md`. The admin and order API are deployed at https://califnco-admin-orpin.vercel.app. The private server credential is configured; authenticated order checks remain pending. Checkout stays unavailable until the API URL is configured. Razorpay, notifications, map selection, social automation and APK/device testing remain outstanding.
 
 ## Run
 
