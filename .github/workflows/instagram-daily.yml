@@ -1,0 +1,55 @@
+name: Daily Instagram AI post
+
+on:
+  schedule:
+    # 09:17 IST. GitHub schedules can be delayed; this is not an exact-time SLA.
+    - cron: '47 3 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Generate preview or publish today's already prepared post
+        type: choice
+        options: [generate, publish]
+        default: generate
+
+concurrency:
+  group: instagram-daily-demo
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  daily-post:
+    if: github.event_name == 'workflow_dispatch' || vars.INSTAGRAM_AUTOMATION_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      INSTAGRAM_USER_ID: ${{ vars.INSTAGRAM_USER_ID }}
+      INSTAGRAM_GRAPH_VERSION: ${{ vars.INSTAGRAM_GRAPH_VERSION || 'v24.0' }}
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test publishing safeguards
+        run: python -m unittest discover -s automation/instagram -p 'test_*.py' -v
+      - name: Install CPU-only AI tools
+        if: github.event_name == 'schedule' || inputs.mode == 'generate'
+        run: |
+          python -m pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install --no-cache-dir -r automation/instagram/requirements.txt
+      - name: Generate AI image, caption and hashtags
+        if: github.event_name == 'schedule' || inputs.mode == 'generate'
+        run: python automation/instagram/run.py generate
+      - name: Publish prepared post to Instagram
+        if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish') || (github.event_name == 'schedule' && vars.INSTAGRAM_AUTO_PUBLISH_ENABLED == 'true')
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: python automation/instagram/run.py publish

@@ -25,3 +25,5 @@ tmp/
 service-account*.json
 *-debug.log
 firebase-debug.*
+__pycache__/
+.venv/
