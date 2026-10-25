@@ -51,7 +51,7 @@ class FakeInstagram:
 
 
 def prepared(**changes):
-    return {"date": "2026-10-25", "status": "container_created", "caption": "A unique generated demo caption", "image_url": "https://raw.githubusercontent.com/example/image.jpg", "container_id": "55555", "expected_username": automation.EXPECTED_USERNAME, **changes}
+    return {"date": "2026-10-25", "status": "container_created", "content_version": automation.CONTENT_VERSION, "caption": "A unique generated demo caption", "image_url": "https://raw.githubusercontent.com/example/image.jpg", "container_id": "55555", "expected_username": automation.EXPECTED_USERNAME, **changes}
 
 
 class AutomationTests(unittest.TestCase):
@@ -62,12 +62,14 @@ class AutomationTests(unittest.TestCase):
         self.assertEqual(automation.choose_product(date(2026, 10, 28), products), "purifier")
 
     def test_caption_requires_generated_hashtags_and_discloses_demo(self):
-        text = "Explore a water filter category and ask an installer about compatibility. #Water #Filter #Home"
+        text = "Explore the water filter category and ask a local installer about housing size, fit and compatibility. #Water #Filter #Home"
         result = automation.finalize_caption(text, date(2026, 10, 25))
         self.assertIn("AI-generated illustration", result)
         self.assertIn("Demo series 2026-10-25", result)
         with self.assertRaises(automation.AutomationError):
             automation.finalize_caption("A template without hashtags", date.today())
+        with self.assertRaises(automation.AutomationError):
+            automation.finalize_caption("#Water #Filter #Home #Purifiers #WaterEquipment", date.today())
 
     def test_caption_rejects_false_claims(self):
         with self.assertRaises(automation.AutomationError):
@@ -119,7 +121,7 @@ class AutomationTests(unittest.TestCase):
         self.assertEqual(result["status"], "container_created")
 
     def test_old_unsubmitted_caption_can_be_upgraded_without_replacing_image(self):
-        store = MemoryStore(prepared(status="prepared", product={"name": "RO purifier"}))
+        store = MemoryStore(prepared(status="prepared", content_version=1, product={"name": "RO purifier"}))
         with patch.object(automation, "generate_caption", return_value=("Improved AI caption", "revision")):
             with patch.object(automation, "generate_image", side_effect=AssertionError("Keep reviewed image")):
                 result = automation.generate(store, date(2026, 10, 25))

@@ -25,7 +25,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 IMAGE_MODEL = "stabilityai/sd-turbo"
 IMAGE_REVISION = "b261bac6fd2cf515557d5d0707481eafa0485ec2"
 CAPTION_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
-CONTENT_VERSION = 2
+CONTENT_VERSION = 3
 BRANCH = "automation-assets"
 EXPECTED_USERNAME = "yohoho080jd"
 
@@ -66,13 +66,14 @@ def finalize_caption(generated, day):
     text = generated.strip()
     text = re.sub(r"\A(?:Here's|Here is)[^\n]*:\s*", "", text, flags=re.I).strip().strip('"').strip()
     tags = list(dict.fromkeys(re.findall(r"#[A-Za-z][A-Za-z0-9_]{1,35}", text)))
-    if len(tags) < 3 or len(text) < 30 or len(text) > 1400:
+    body = re.sub(r"#[A-Za-z][A-Za-z0-9_]*", "", text).strip().strip('"').strip()
+    if len(tags) < 3 or len(body.split()) < 15 or len(text) > 1400:
         raise AutomationError("AI caption did not meet the caption/hashtag checks. Nothing was published.")
     # Demo content must not imply a real offer or proven health/performance claim.
     forbidden = r"https?://|@[A-Za-z0-9_]|\b(cures?|guaranteed|100%|99\.9|certified|buy now|discount|sale|disease|bacteria|viruses|our team|we offer|our experts|order now)\b"
     if re.search(forbidden, text, re.I):
         raise AutomationError("AI caption contained an unsupported claim or promotion. Nothing was published.")
-    return f"{text}\n\nAssignment demo • AI-generated illustration, not an exact product photograph.\nNot an official Califnco account or a sales offer.\nDemo series {day.isoformat()}. #CalifncoDemo"
+    return f"{body}\n\n{' '.join(tags[:4])}\n\nAssignment demo • AI-generated illustration, not an exact product photograph.\nNot an official Califnco account or a sales offer.\nDemo series {day.isoformat()}. #CalifncoDemo"
 
 
 class GitHubStore:
@@ -137,19 +138,19 @@ def generate_caption(product, day):
     torch.set_num_threads(min(4, os.cpu_count() or 2))
     tokenizer = AutoTokenizer.from_pretrained(CAPTION_MODEL, trust_remote_code=False)
     model = AutoModelForCausalLM.from_pretrained(CAPTION_MODEL, torch_dtype=torch.float32, use_safetensors=True, trust_remote_code=False)
-    prompt = (f"Write a 25 to 45 word educational Instagram caption about the object: {product['name']}. "
-              f"Use only these facts: {product['facts']} End with exactly 4 relevant hashtags. "
-              "This is not a business and offers no installation services. Do not use 'our', 'we', 'team', 'experts' or 'buy'. "
-              "Do not invent facts, benefits, sales offers, medical claims or performance promises. "
-              "Return only the caption and hashtags, with no introduction or quotation marks.")
-    messages = [{"role": "system", "content": "Write factual educational captions for a student demo, never advertisements or service offers."}, {"role": "user", "content": prompt}]
-    inputs = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt", return_dict=True)
-    with torch.inference_mode():
-        output = model.generate(**inputs, max_new_tokens=160, do_sample=False, pad_token_id=tokenizer.eos_token_id)
-    generated = tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+    def complete(prompt, tokens=120):
+        messages = [{"role": "system", "content": "You are an educational writer. Explain objects factually, without selling anything."}, {"role": "user", "content": prompt}]
+        inputs = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt", return_dict=True)
+        with torch.inference_mode():
+            output = model.generate(**inputs, max_new_tokens=tokens, do_sample=False, pad_token_id=tokenizer.eos_token_id)
+        return tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+    # Separate requests prevent a small model from replacing the body with tags.
+    body = complete(f"Write two short plain-English sentences about a {product['name']}. Facts: {product['facts']} Return only the two sentences. Do not add hashtags, an introduction, claims or a service offer.")
+    hashtags = complete(f"List four Instagram hashtags about this product category: {product['name']}. Return hashtags only. Avoid health, safety, DIY and performance claims.", 60)
+    generated = f"{body}\n{hashtags}"
     caption = finalize_caption(generated, day)
     revision = getattr(model.config, "_commit_hash", None)
-    del model, tokenizer, inputs, output
+    del model, tokenizer
     gc.collect()
     return caption, revision
 
@@ -262,6 +263,8 @@ def publish(store, day, instagram=None):
     if record["status"] == "published":
         print(f"Already published: {record.get('permalink', record.get('media_id'))}")
         return record
+    if record.get("content_version", 0) < CONTENT_VERSION:
+        raise AutomationError("Regenerate this unsubmitted preview using the current caption checks before publishing.")
     if record.get("expected_username") != EXPECTED_USERNAME:
         raise AutomationError("Preview account does not match the configured demo account.")
     instagram = instagram or Instagram()
