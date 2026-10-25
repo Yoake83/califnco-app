@@ -24,7 +24,8 @@ ROOT = Path(__file__).resolve().parent
 IST = timezone(timedelta(hours=5, minutes=30))
 IMAGE_MODEL = "stabilityai/sd-turbo"
 IMAGE_REVISION = "b261bac6fd2cf515557d5d0707481eafa0485ec2"
-CAPTION_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+CAPTION_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+CONTENT_VERSION = 2
 BRANCH = "automation-assets"
 EXPECTED_USERNAME = "yohoho080jd"
 
@@ -62,12 +63,13 @@ def choose_product(day, products):
 
 
 def finalize_caption(generated, day):
-    text = generated.strip().strip('"').strip()
+    text = generated.strip()
+    text = re.sub(r"\A(?:Here's|Here is)[^\n]*:\s*", "", text, flags=re.I).strip().strip('"').strip()
     tags = list(dict.fromkeys(re.findall(r"#[A-Za-z][A-Za-z0-9_]{1,35}", text)))
     if len(tags) < 3 or len(text) < 30 or len(text) > 1400:
         raise AutomationError("AI caption did not meet the caption/hashtag checks. Nothing was published.")
     # Demo content must not imply a real offer or proven health/performance claim.
-    forbidden = r"https?://|@[A-Za-z0-9_]|\b(cures?|guaranteed|100%|99\.9|certified|buy now|discount|sale|disease|bacteria|viruses)\b"
+    forbidden = r"https?://|@[A-Za-z0-9_]|\b(cures?|guaranteed|100%|99\.9|certified|buy now|discount|sale|disease|bacteria|viruses|our team|we offer|our experts|order now)\b"
     if re.search(forbidden, text, re.I):
         raise AutomationError("AI caption contained an unsupported claim or promotion. Nothing was published.")
     return f"{text}\n\nAssignment demo • AI-generated illustration, not an exact product photograph.\nNot an official Califnco account or a sales offer.\nDemo series {day.isoformat()}. #CalifncoDemo"
@@ -135,15 +137,16 @@ def generate_caption(product, day):
     torch.set_num_threads(min(4, os.cpu_count() or 2))
     tokenizer = AutoTokenizer.from_pretrained(CAPTION_MODEL, trust_remote_code=False)
     model = AutoModelForCausalLM.from_pretrained(CAPTION_MODEL, torch_dtype=torch.float32, use_safetensors=True, trust_remote_code=False)
-    prompt = (f"Write a short Instagram caption about a {product['name']} for an educational water equipment demo. "
-              f"Facts: {product['facts']} Write 25 to 45 English words and 4 relevant hashtags. "
-              "No introduction, no prices, no sales offers, no medical claims, no performance promises, no links. "
-              "Return only the caption and hashtags.")
-    messages = [{"role": "system", "content": "You write factual, concise product category captions for a student assignment demo."}, {"role": "user", "content": prompt}]
-    inputs = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+    prompt = (f"Write a 25 to 45 word educational Instagram caption about the object: {product['name']}. "
+              f"Use only these facts: {product['facts']} End with exactly 4 relevant hashtags. "
+              "This is not a business and offers no installation services. Do not use 'our', 'we', 'team', 'experts' or 'buy'. "
+              "Do not invent facts, benefits, sales offers, medical claims or performance promises. "
+              "Return only the caption and hashtags, with no introduction or quotation marks.")
+    messages = [{"role": "system", "content": "Write factual educational captions for a student demo, never advertisements or service offers."}, {"role": "user", "content": prompt}]
+    inputs = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt", return_dict=True)
     with torch.inference_mode():
-        output = model.generate(inputs, max_new_tokens=160, do_sample=False, pad_token_id=tokenizer.eos_token_id)
-    generated = tokenizer.decode(output[0][inputs.shape[-1]:], skip_special_tokens=True)
+        output = model.generate(**inputs, max_new_tokens=160, do_sample=False, pad_token_id=tokenizer.eos_token_id)
+    generated = tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
     caption = finalize_caption(generated, day)
     revision = getattr(model.config, "_commit_hash", None)
     del model, tokenizer, inputs, output
@@ -184,6 +187,12 @@ def generate(store, day):
     path = f"automation-output/{day}/post.json"
     record = store.read(path)
     if record:
+        if record["status"] == "prepared" and record.get("content_version", 1) < CONTENT_VERSION:
+            caption, revision = generate_caption(record["product"], day)
+            record.update(caption=caption, caption_model=CAPTION_MODEL, caption_model_revision=revision, content_version=CONTENT_VERSION)
+            store.save(path, record)
+            print(f"Updated unsubmitted preview caption:\n{caption}")
+            return record
         print(f"Existing {day} record: {record['status']}; reusing it without regeneration.")
         return record
     products = json.loads((ROOT / "products.json").read_text())
@@ -194,7 +203,7 @@ def generate(store, day):
     image_details = generate_image(product, day, output)
     image_path = f"automation-output/{day}/image.jpg"
     store.write(image_path, output.read_bytes())
-    record = {"date": str(day), "status": "prepared", "product": product, "caption": caption,
+    record = {"date": str(day), "status": "prepared", "content_version": CONTENT_VERSION, "product": product, "caption": caption,
               "image_url": store.public_url(image_path), "image": image_details,
               "caption_model": CAPTION_MODEL, "caption_model_revision": caption_revision,
               "expected_username": EXPECTED_USERNAME, "created_at": datetime.now(timezone.utc).isoformat()}

@@ -118,6 +118,14 @@ class AutomationTests(unittest.TestCase):
             result = automation.generate(store, date(2026, 10, 25))
         self.assertEqual(result["status"], "container_created")
 
+    def test_old_unsubmitted_caption_can_be_upgraded_without_replacing_image(self):
+        store = MemoryStore(prepared(status="prepared", product={"name": "RO purifier"}))
+        with patch.object(automation, "generate_caption", return_value=("Improved AI caption", "revision")):
+            with patch.object(automation, "generate_image", side_effect=AssertionError("Keep reviewed image")):
+                result = automation.generate(store, date(2026, 10, 25))
+        self.assertEqual(result["caption"], "Improved AI caption")
+        self.assertEqual(result["content_version"], automation.CONTENT_VERSION)
+
 
 if __name__ == "__main__":
     unittest.main()

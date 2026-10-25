@@ -2,7 +2,7 @@
 
 Implementation: `.github/workflows/instagram-daily.yml` and `automation/instagram/`.
 
-The workflow rotates one product category per day from a small, reviewed JSON catalog; it does not advertise unverified prices or inventory. Qwen2.5-0.5B-Instruct generates the caption and hashtags. SD-Turbo generates a fresh product illustration, with a visible assignment-demo label. Models run locally on the standard GitHub CPU runner: no paid inference service or AI API key is used. A separate public `automation-assets` branch hosts JPEGs and a durable daily journal. GitHub Actions runs at approximately 09:17 IST; queued schedules can be delayed, and inactive public repositories can have schedules disabled by GitHub. CPU/model download time is a practical limitation.
+The workflow rotates one product category per day from a small, reviewed JSON catalog; it does not advertise unverified prices or inventory. Qwen2.5-1.5B-Instruct generates the caption and hashtags. SD-Turbo generates a fresh product illustration, with a visible assignment-demo label. Models run locally on the standard GitHub CPU runner: no paid inference service or AI API key is used. A separate public `automation-assets` branch hosts JPEGs and a durable daily journal. GitHub Actions runs at approximately 09:17 IST; queued schedules can be delayed, and inactive public repositories can have schedules disabled by GitHub. CPU/model download time is a practical limitation.
 
 ## Status
 
