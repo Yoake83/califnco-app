@@ -6,7 +6,11 @@ The workflow rotates one product category per day from a small, reviewed JSON ca
 
 ## Status
 
-Code is implemented. A real GitHub Actions CPU run on 25 October 2026 generated the product illustration and hosted a public JPEG; a subsequent successful run generated a revised prose caption plus hashtags. The image was visually inspected. Meta app `Califnco Assignment Demo` (ID `1842363726782846`) is created; basic/profile and content-publishing permissions were added with owner approval, and the owner accepted the tester invite for `yohoho080jd`. Token setup, public asset fetching by Meta and actual Instagram publishing still need verification. No live post or unattended schedule has been enabled. Screen recording is still a submission deliverable.
+Verified on 25 October 2026: a real GitHub Actions CPU run generated the product illustration and hosted a public JPEG; a subsequent successful run generated a revised prose caption plus hashtags. The image was visually inspected. Meta app `Califnco Assignment Demo` (ID `1842363726782846`) is created; basic/profile and content-publishing permissions were added with owner approval, and the owner accepted the tester invite for `yohoho080jd`. The owner stored the token directly in GitHub's encrypted secret. A read-only API check verified the expected username and numeric ID.
+
+With explicit owner approval for **this post only**, [publishing run #5](https://github.com/Yoake83/califnco-app/actions/runs/40175530041) succeeded and the [actual Instagram post](https://www.instagram.com/p/De6PuOmlDqp/) was visually verified with its image, caption, hashtags and demo disclaimer. Meta fetched the public JPEG successfully. The owner chose not to enable daily posts: both schedule switches remain unset/disabled. Scheduling code exists but unattended scheduled publication has not been demonstrated. Screen recording is still a submission deliverable.
+
+Ten tests pass, including exact token-account identity, journal failures and uncertain-publication retries. Early workflow summaries accidentally included mocked publication output from tests; test output and summary writes were isolated before the real publishing run. Only run #5 and the actual Instagram permalink are publication evidence.
 
 ## Account setup
 
@@ -32,6 +36,8 @@ Code is implemented. A real GitHub Actions CPU run on 25 October 2026 generated 
 ## Recording checklist
 
 Show the workflow's daily schedule, product rotation, successful generation logs, generated JPEG, caption/hashtags, successful publish request and the resulting Instagram post. Hide all tokens, passwords and developer secrets. Upload the actual screen recording to the submission host and verify its viewing permissions.
+
+Use generation run [#3](https://github.com/Yoake83/califnco-app/actions/runs/40174621541) for the final AI caption and publishing run [#5](https://github.com/Yoake83/califnco-app/actions/runs/40175530041) for the successful real publication. Show the schedule as configured but currently disabled by owner choice; do not describe it as a completed unattended daily run. Replaying today's publish mode reuses the journal and does not intentionally create a second post.
 
 ## Validation
 

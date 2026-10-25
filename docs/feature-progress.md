@@ -10,7 +10,7 @@ UI redesign is deferred until functionality is finished, as requested.
 6. **Shared service bookings and admin status management:** implemented and tested; service rules published with user approval.
 7. **Address/location selection:** pending.
 8. **Order/service/dealer notifications:** pending; native device verification required.
-9. **Instagram image/caption generation and publishing:** daily GitHub Actions workflow, local open-model image/caption generation, public JPEG hosting and guarded Instagram publisher implemented. Account connection, actual AI run, live post and recording remain pending. See `instagram-automation.md`.
+9. **Instagram image/caption generation and publishing:** implemented and verified with a real AI image/caption run, public JPEG hosting, account check and [live Instagram demo post](https://www.instagram.com/p/De6PuOmlDqp/) on 25 October 2026. Daily schedule exists but remains disabled because the owner approved this post only. Screen recording remains pending. See `instagram-automation.md`.
 10. **Android device tests, installable build and deployment:** pending.
 
 No live payments or orders have been accepted. The catalog does not automatically import sample prices or stock.
