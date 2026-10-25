@@ -8,7 +8,7 @@
     "visual": "a single modern white wall-mounted reverse osmosis water purifier with a small black front panel and water tap, on a clean kitchen wall",
     "facts": "A demonstration of a home water-purifier product category. Ask an installer about local water conditions and compatibility."
   },
-  "caption": "Here's a short caption for your water purification demo:\n\n\"Discover our RO water purifier! Learn how it works with local water conditions and compatibility. Get an expert installation from our team. #WaterPurification #HomeTech #LocalWater #DIYWaterEquipment\"\n\n#ROwaterpurifier #homeequipment #installationtips #localconditions #compatibilitytest #DIYtutorial #waterqualitymonitoring #cleanwateraccessories\n\n#ROwaterpurifier #homeequipment #installationtips #localconditions #compatibilitytest #DIYtutorial #waterqualitymonitoring #cleanwateraccessories\n\nAssignment demo \u2022 AI-generated illustration, not an exact product photograph.\nNot an official Califnco account or a sales offer.\nDemo series 2026-10-25. #CalifncoDemo",
+  "caption": "#ROwaterpurifier #DIYfilter #HomeWaterTreatment #LocalCompatibility #AskAnInstaller #SafeBottledWater #FilterYourself #HealthierLiving #PurifyYourHomes #CleanWaterForAll\n\nAssignment demo \u2022 AI-generated illustration, not an exact product photograph.\nNot an official Califnco account or a sales offer.\nDemo series 2026-10-25. #CalifncoDemo",
   "image_url": "https://raw.githubusercontent.com/Yoake83/califnco-app/automation-assets/automation-output/2026-10-25/image.jpg",
   "image": {
     "model": "stabilityai/sd-turbo",
@@ -17,8 +17,9 @@
     "steps": 4,
     "prompt": "Professional studio product photograph, a single modern white wall-mounted reverse osmosis water purifier with a small black front panel and water tap, on a clean kitchen wall, realistic materials, soft daylight, pale teal and white color palette, clean uncluttered composition, no people, no lettering, no watermark"
   },
-  "caption_model": "Qwen/Qwen2.5-0.5B-Instruct",
-  "caption_model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "caption_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "caption_model_revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
   "expected_username": "yohoho080jd",
-  "created_at": "2026-10-25T07:49:01.415350+00:00"
+  "created_at": "2026-10-25T07:49:01.415350+00:00",
+  "content_version": 2
 }
