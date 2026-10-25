@@ -1,4 +1,6 @@
 import copy
+import contextlib
+import io
 import os
 from datetime import date
 from email.message import Message
@@ -56,6 +58,15 @@ def prepared(**changes):
 
 
 class AutomationTests(unittest.TestCase):
+    def setUp(self):
+        # Mock publication must never create a real Actions job-summary claim.
+        environment = patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": ""})
+        environment.start()
+        self.addCleanup(environment.stop)
+        output = contextlib.redirect_stdout(io.StringIO())
+        output.__enter__()
+        self.addCleanup(output.__exit__, None, None, None)
+
     def test_product_rotation_is_daily_and_wraps(self):
         products = ["purifier", "pump", "filter"]
         self.assertEqual(automation.choose_product(date(2026, 10, 25), products), "purifier")
