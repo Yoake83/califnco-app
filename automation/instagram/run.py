@@ -320,9 +320,13 @@ def publish(store, day, instagram=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["generate", "publish"])
+    parser.add_argument("command", choices=["generate", "check", "publish"])
     parser.add_argument("--date", help="IST calendar date (YYYY-MM-DD); defaults to today")
     args = parser.parse_args()
+    if args.command == "check":
+        Instagram().verify_account()
+        print(f"Instagram account verified: @{EXPECTED_USERNAME}. No post was created or published.")
+        return
     day = run_day(args.date)
     # Historical publishing is intentionally blocked; preview generation is okay.
     if args.command == "publish" and day != run_day():

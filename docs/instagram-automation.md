@@ -6,7 +6,7 @@ The workflow rotates one product category per day from a small, reviewed JSON ca
 
 ## Status
 
-Code is implemented; provider-backed AI generation, public asset fetching by Meta and actual Instagram publishing still need verification. No live post or unattended schedule has been enabled. The intended demo username is `yohoho080jd`. Physical screen recording is still a submission deliverable.
+Code is implemented. A real GitHub Actions CPU run on 25 October 2026 generated the product illustration and hosted a public JPEG; a subsequent successful run generated a revised prose caption plus hashtags. The image was visually inspected. Meta app `Califnco Assignment Demo` (ID `1842363726782846`) is created; basic/profile and content-publishing permissions were added with owner approval, and the owner accepted the tester invite for `yohoho080jd`. Token setup, public asset fetching by Meta and actual Instagram publishing still need verification. No live post or unattended schedule has been enabled. Screen recording is still a submission deliverable.
 
 ## Account setup
 
@@ -15,7 +15,7 @@ Code is implemented; provider-backed AI generation, public asset fetching by Met
 3. Add the demo professional account as an Instagram tester/account in the app and accept any tester invite on that Instagram account. Use the dashboard's token setup to authorize `instagram_business_basic` and `instagram_business_content_publish`. The app's own roles/test account may be used in development; publishing on behalf of unrelated accounts can require app review.
 4. In GitHub repository Settings → Secrets and variables → Actions, save the token as repository secret `INSTAGRAM_ACCESS_TOKEN`. Save the numeric professional account ID as variable `INSTAGRAM_USER_ID`, and the supported Graph API version as `INSTAGRAM_GRAPH_VERSION` (default `v24.0`). Never commit or paste the token into chat. Track its expiry and use Meta's supported refresh/renewal process; an expired token must stop the workflow.
 5. Run **Daily Instagram AI post**, mode **generate**. Inspect the AI image and caption linked in the job summary and `automation-assets/automation-output/YYYY-MM-DD/post.json`.
-6. After the owner approves the exact post and target account, run the workflow in **publish** mode. It uses the already prepared content, not a new unreviewed generation. Verify the actual post permalink on Instagram.
+6. Run **check** mode to verify the token's username and numeric account ID without publishing. After the owner approves the exact post and target account, run the workflow in **publish** mode. It uses the already prepared content, not a new unreviewed generation. Verify the actual post permalink on Instagram.
 7. Only after the owner authorizes ongoing daily publication, set repository variables `INSTAGRAM_AUTOMATION_ENABLED=true` and `INSTAGRAM_AUTO_PUBLISH_ENABLED=true`. With only the first variable enabled, the daily workflow generates previews but does not publish. Both default to disabled.
 
 ## Reliability and limits

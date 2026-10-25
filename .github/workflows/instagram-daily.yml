@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Generate preview or publish today's already prepared post
+        description: Generate a preview, check account access, or publish today's prepared post
         type: choice
-        options: [generate, publish]
+        options: [generate, check, publish]
         default: generate
 
 concurrency:
@@ -48,6 +48,11 @@ jobs:
       - name: Generate AI image, caption and hashtags
         if: github.event_name == 'schedule' || inputs.mode == 'generate'
         run: python automation/instagram/run.py generate
+      - name: Verify Instagram account (read-only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'check'
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: python automation/instagram/run.py check
       - name: Publish prepared post to Instagram
         if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish') || (github.event_name == 'schedule' && vars.INSTAGRAM_AUTO_PUBLISH_ENABLED == 'true')
         env:

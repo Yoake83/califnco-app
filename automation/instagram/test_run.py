@@ -1,4 +1,5 @@
 import copy
+import os
 from datetime import date
 from email.message import Message
 import unittest
@@ -113,6 +114,18 @@ class AutomationTests(unittest.TestCase):
         with self.assertRaises(automation.AutomationError):
             automation.publish(store, date(2026, 10, 25), api)
         self.assertEqual(api.publish_calls, 0)
+
+    def test_token_identity_must_match_username_and_numeric_id(self):
+        with patch.dict(os.environ, {"INSTAGRAM_ACCESS_TOKEN": "test-only-placeholder", "INSTAGRAM_USER_ID": "12345"}):
+            api = automation.Instagram()
+            with patch.object(api, "call", return_value={"user_id": "12345", "username": "someone_else"}):
+                with self.assertRaises(automation.AutomationError):
+                    api.verify_account()
+            with patch.object(api, "call", return_value={"user_id": "99999", "username": automation.EXPECTED_USERNAME}):
+                with self.assertRaises(automation.AutomationError):
+                    api.verify_account()
+            with patch.object(api, "call", return_value={"user_id": "12345", "username": automation.EXPECTED_USERNAME}):
+                api.verify_account()
 
     def test_existing_prepared_post_is_not_regenerated(self):
         store = MemoryStore(prepared())
